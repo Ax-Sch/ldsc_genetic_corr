@@ -1,0 +1,10 @@
+trait_name	ss_path	snp	a1_effect	a2_non_effect	add_munge_args	no_munge
+zero_vs_1_18	/home/aschmidt/zero_vs_1_18_sumstat_cc.tsv.gz	ID	ALLELE1	ALLELE0	--N-col N --N-con-col N_CONTROLS --N-cas-col N_CASES --p P	0
+HHV_7_pos	/home/aschmidt/HHV_7_pos_sumstats_cc.tsv.gz	ID	ALLELE1	ALLELE0	--N-col N --N-con-col N_CONTROLS --N-cas-col N_CASES --p P	0
+zoster	/home/aschmidt/zoster_sumstats_cc.tsv.gz	ID	ALLELE1	ALLELE0	--N-col N --N-con-col N_CONTROLS --N-cas-col N_CASES --p P	0
+T_cell_lymphos	/home/aschmidt/Downloads/genetic_correlations/32929287-GCST90001604-EFO_0007937.h.tsv.gz	hm_rsid	effect_allele	other_allele	--N-col n --p p_value	0
+mem_b_perc	/home/aschmidt/Downloads/genetic_correlations/32929287-GCST90001406-EFO_0007937.h.tsv.gz	hm_rsid	effect_allele	other_allele	--N-col n --p p_value	0
+rheuma	/mnt/int2/sumstats_EBV/PASS_Rheumatoid_Arthritis.sumstats	SNP	A1	A2	 	1
+MS	/mnt/int2/sumstats_EBV/PASS_Multiple_sclerosis.sumstats	SNP	A1	A2	 	1
+SLE	/mnt/int2/sumstats_EBV/PASS_Lupus.sumstats	SNP	A1	A2	 	1
+B_cell_lymphos	/mnt/int2/sumstats_EBV/32929287-GCST90001644-EFO_0007937.h.tsv.gz	hm_rsid	effect_allele	other_allele	--N-col n --p p_value	0

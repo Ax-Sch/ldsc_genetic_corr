@@ -1,0 +1,205 @@
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+HTTP = HTTPRemoteProvider()
+import pandas as pd
+from itertools import combinations
+
+
+sumstats_list=pd.read_csv("resources/traits.tsv", sep="\t")
+traits=sumstats_list["trait_name"].to_list()
+
+pairs_of_traits=list(combinations(traits, 2))
+pairs_of_traits_appended = [f"{a}.{b}" for a, b in pairs_of_traits]
+
+print(traits)
+print(pairs_of_traits_appended)
+
+ukb_ref=True
+
+
+
+rule all:
+	input:
+		expand("results/ldsc/h2/{trait_name}.log", trait_name=traits),
+		expand("results/ldsc/rg/{trait_combinations}_ldsc.log", trait_combinations=pairs_of_traits_appended),
+		"resources/ldsc/UKBB.ALL.ldscore"
+
+
+rule ldsc_fetch_hm3_bz:
+	output: "resources/ldsc/w_hm3.snplist.gz"
+	shell: "wget https://zenodo.org/records/7773502/files/w_hm3.snplist.gz -O {output}"
+
+
+# https://zenodo.org/records/7768714
+rule ldsc_fetch_eur_w_ld_chr_bz:
+	output: 
+		tgz=temp("resources/ldsc/eur_w_ld_chr.tar.bz2"),
+		lds_folder=directory("resources/ldsc/LDscore/")
+	shell: 
+		"""
+		wget "https://zenodo.org/records/7768714/files/1000G_Phase3_ldscores.tgz" -O {output.tgz}
+		tar -zxvf {output.tgz} -C  $(dirname {output.tgz})
+		"""
+
+rule ldsc_fetch_eur_weights:
+	output: 
+		tgz=temp("resources/ldsc/1000G_Phase3_weights_hm3_no_MHC.tgz"),
+		weights=directory("resources/ldsc/1000G_Phase3_weights_hm3_no_MHC/")
+	shell: 
+		"""
+		wget https://zenodo.org/records/7768714/files/1000G_Phase3_weights_hm3_no_MHC.tgz -O {output.tgz}
+		tar -zxvf {output.tgz} -C  $(dirname {output.tgz})
+		"""
+
+rule ldsc_fetch_ldscore_tar_gz:
+	input: HTTP.remote("https://pan-ukb-us-east-1.s3.amazonaws.com/ld_release/UKBB.ALL.ldscore.tar.gz")
+	output: "resources/ldsc/UKBB.ALL.ldscore.tar.gz"
+	shell: "cp {input} {output}"
+
+rule ldsc_untar_ldscore:
+	input: "resources/ldsc/UKBB.ALL.ldscore.tar.gz"
+	output: 
+		dir=directory("resources/ldsc/UKBB.ALL.ldscore"), 
+		ldscore=expand("resources/ldsc/UKBB.ALL.ldscore/UKBB.{ancestries}.{ext}", ancestries=['AFR', 'AMR', 'CSA', 'EAS', 'EUR', 'MID'], ext=['l2.M', 'l2.M_5_50', 'l2.ldscore.gz', 'rsid.l2.ldscore.gz'])
+	shell: "tar -zxvf {input} -C $(dirname {output.dir})"
+
+
+rule ldsc_install:
+	output: directory("resources/ldsc/ldsc")
+	shell: "git clone https://github.com/bulik/ldsc.git {output}"
+
+
+
+
+def get_munge_params(wildcards):
+	trait_name=wildcards["trait_name"]
+	trait_data=sumstats_list[sumstats_list["trait_name"]==wildcards["trait_name"]].reset_index(drop=True)
+	munge_in_string=trait_data.loc[0].to_dict()
+	out_prefix={"prefix": "results/ldsc/munged/" + trait_name}
+	munge_in_string.update(out_prefix)
+	print(munge_in_string)
+	return(munge_in_string)
+
+
+rule ldsc_munge:
+	input: 
+		sumstats=lambda wildcards: get_munge_params(wildcards)["ss_path"],
+		hm3="resources/ldsc/w_hm3.snplist.gz", 
+		ldsc=rules.ldsc_install.output,
+	output: "results/ldsc/munged/{trait_name}.sumstats.gz"
+	params:
+		get_munge_params
+	conda: "envs/ldsc.yaml"
+	shell: 
+		"""
+		if [ {params[0][no_munge]} -gt 0 ]; then
+		  cat {input.sumstats} | gzip > {output};
+		else
+		resources/ldsc/ldsc/munge_sumstats.py \
+			--sumstats {input.sumstats} \
+			--snp {params[0][snp]} \
+			--a1 {params[0][a1_effect]} \
+			--a2 {params[0][a2_non_effect]} \
+			--out {params[0][prefix]} \
+			{params[0][add_munge_args]} \
+			--merge-alleles {input.hm3} \
+			--chunksize 10000
+		fi
+		"""
+
+
+rule ldsc_h2:
+	input: 
+		sumstats="results/ldsc/munged/{trait_name}.sumstats.gz", 
+		#ld="resources/ldsc/1000G_Phase3_weights_hm3_no_MHC/",
+		ld=lambda wildcards: 'resources/ldsc/UKBB.ALL.ldscore/UKBB.EUR.rsid.l2.ldscore.gz' if ukb_ref==True else 'resources/ldsc/LDscore/',
+		#ld=lambda wildcards: expand('resources/ldsc/UKBB.ALL.ldscore/UKBB.EUR.rsid.l2.ldscore.gz'), 
+		l2_M=lambda wildcards: expand('resources/ldsc/UKBB.ALL.ldscore/UKBB.EUR.l2.M_5_50')
+	params:
+		prefix="results/ldsc/h2/{trait_name}", 
+		#wld="resources/ldsc/1000G_Phase3_weights_hm3_no_MHC/weights.hm3_noMHC.",
+		ld=lambda wildcards: ' resources/ldsc/UKBB.ALL.ldscore/UKBB.EUR.rsid' if ukb_ref==True else '-chr resources/ldsc/LDscore/LDscore.',
+		#ld=lambda wildcards: expand('resources/ldsc/UKBB.ALL.ldscore/UKBB.EUR.rsid')
+	conda: "envs/ldsc.yaml"
+	output: "results/ldsc/h2/{trait_name}.log"
+	shell: 
+		"""
+		resources/ldsc/ldsc/ldsc.py \
+			--h2 {input.sumstats} \
+			--ref-ld{params.ld} \
+			--w-ld{params.ld} \
+			--M $(cat {input.l2_M}) \
+			--out {params.prefix}
+		"""
+
+rule LDSC_rg:
+	input:
+		g1 = "results/ldsc/munged/{g1}.sumstats.gz",
+		g2 = "results/ldsc/munged/{g2}.sumstats.gz",
+		#wld="resources/ldsc/1000G_Phase3_weights_hm3_no_MHC/",
+		ld=lambda wildcards: 'resources/ldsc/UKBB.ALL.ldscore/UKBB.EUR.rsid.l2.ldscore.gz' if ukb_ref==True else 'resources/ldsc/LDscore/',
+		l2_M=lambda wildcards: expand('resources/ldsc/UKBB.ALL.ldscore/UKBB.EUR.l2.M_5_50')
+	output:
+		log = "results/ldsc/rg/{g1}.{g2}_ldsc.log",
+	params: 
+		#wld="resources/ldsc/1000G_Phase3_weights_hm3_no_MHC/weights.hm3_noMHC.",
+		ld=lambda wildcards: ' resources/ldsc/UKBB.ALL.ldscore/UKBB.EUR.rsid' if ukb_ref==True else '-chr resources/ldsc/LDscore/LDscore.',
+		out="results/ldsc/rg/{g1}.{g2}_ldsc",
+	conda: "envs/ldsc.yaml"
+	shell:
+		"""
+		resources/ldsc/ldsc/ldsc.py \
+			--rg {input.g1},{input.g2} \
+			--ref-ld{params.ld} \
+			--w-ld{params.ld} \
+			--M $(cat {input.l2_M}) \
+			--out {params.out};
+		"""
+
+
+
+
+##
+## Stratified LDSC resources
+##
+
+# 1000G Phase 3 plink files for LDSC
+rule ldsc_1kg3:
+	input: HTTP.remote("https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/1000G_Phase3_plinkfiles.tgz")
+	output: directory("resources/ldsc/1000G_EUR_Phase3_plink")
+	shell: "tar xzf {input} -C $(dirname {output})"
+	
+# Gene coordinates file
+rule ldsc_gene_coord:
+	input: HTTP.remote("https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/make_annot_sample_files/ENSG_coord.txt")
+	output: "resources/ldsc/ENSG_coord.txt"
+	shell: "mv {input} {output}"
+	
+# hapmap3 snps
+rule ldsc_hapmap3:
+	input: HTTP.remote("https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/hapmap3_snps.tgz")
+	output: directory("resources/ldsc/hapmap3_snps")
+	shell: "tar xzf {input} -C $(dirname {output})"
+	
+# regression weights
+rule ldsc_weights:
+	input: HTTP.remote("https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/weights_hm3_no_hla.tgz")
+	output: directory("resources/ldsc/weights_hm3_no_hla")
+	shell: "tar xzf {input} -C $(dirname {output})"
+	
+# allele frequencies
+rule ldsc_mac5eur:
+	input: HTTP.remote("https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/1000G_Phase3_frq.tgz")
+	output: directory("resources/ldsc/1000G_Phase3_frq")
+	shell: "tar xzf {input} -C $(dirname {output})"
+	
+# baseline annotations
+rule ldsc_baseline:
+	input: HTTP.remote("https://storage.googleapis.com/broad-alkesgroup-public/LDSCORE/1000G_Phase3_baseline_v1.2_ldscores.tgz")
+	output: directory("resources/ldsc/baseline_v1.2")
+	shell: "tar xzf {input} -C $(dirname {output})"
+
+# baseline SNPs
+rule ldsc_baseline_snps:
+	input: "resources/ldsc/baseline_v1.2"
+	output: "resources/ldsc/baseline_v1.2_snps/baseline.{chr}.snp"
+	shell: "gunzip -c resources/ldsc/baseline_v1.2/baseline.{wildcards.chr}.l2.ldscore.gz | awk 'NR > 1 {{print $2}}' > {output}"
