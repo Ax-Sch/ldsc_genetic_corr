@@ -8,3 +8,4 @@ resources/.~lock.traits.tsv#
 .snakemake/
 .DS_Store
 .Rhistory
+notebooks/genetic_correlation_plot.pdf

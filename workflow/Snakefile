@@ -102,7 +102,7 @@ rule ldsc_munge:
 			--out {params[0][prefix]} \
 			{params[0][add_munge_args]} \
 			--merge-alleles {input.hm3} \
-			--chunksize 10000
+			#--chunksize 10000
 		fi
 		"""
 

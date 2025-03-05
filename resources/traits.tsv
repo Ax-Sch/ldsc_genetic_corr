@@ -1,10 +1,6 @@
 trait_name	ss_path	snp	a1_effect	a2_non_effect	add_munge_args	no_munge
-zero_vs_1_18	/home/aschmidt/zero_vs_1_18_sumstat_cc.tsv.gz	ID	ALLELE1	ALLELE0	--N-col N --N-con-col N_CONTROLS --N-cas-col N_CASES --p P	0
-HHV_7_pos	/home/aschmidt/HHV_7_pos_sumstats_cc.tsv.gz	ID	ALLELE1	ALLELE0	--N-col N --N-con-col N_CONTROLS --N-cas-col N_CASES --p P	0
-zoster	/home/aschmidt/zoster_sumstats_cc.tsv.gz	ID	ALLELE1	ALLELE0	--N-col N --N-con-col N_CONTROLS --N-cas-col N_CASES --p P	0
-T_cell_lymphos	/home/aschmidt/Downloads/genetic_correlations/32929287-GCST90001604-EFO_0007937.h.tsv.gz	hm_rsid	effect_allele	other_allele	--N-col n --p p_value	0
-mem_b_perc	/home/aschmidt/Downloads/genetic_correlations/32929287-GCST90001406-EFO_0007937.h.tsv.gz	hm_rsid	effect_allele	other_allele	--N-col n --p p_value	0
+zero_vs_1_18	/home/aschmidt/Sciebo_bonn/EBV_new/sumstats_UKBioBank/GWAS/zero_vs_1_18_sumstats.tsv.gz	ID	ALLELE1	ALLELE0	--N 360283 --N-cas  56180 --N-con 304103 --p P --ignore N,N_CASES,CHR,EXTRA,N_CONTROLS --chunksize 10000	0
+HHV_7_pos	/home/aschmidt/Sciebo_bonn/EBV_new/sumstats_UKBioBank/GWAS/HHV_7_pos_sumstats.tsv.gz	ID	ALLELE1	ALLELE0	--N 360784 --N-cas 31704 --N-con 329080 --p P --ignore N_CONTROLS --ignore N,N_CASES,CHR,EXTRA,N_CONTROLS --chunksize 10000	0
 rheuma	/mnt/int2/sumstats_EBV/PASS_Rheumatoid_Arthritis.sumstats	SNP	A1	A2	 	1
 MS	/mnt/int2/sumstats_EBV/PASS_Multiple_sclerosis.sumstats	SNP	A1	A2	 	1
 SLE	/mnt/int2/sumstats_EBV/PASS_Lupus.sumstats	SNP	A1	A2	 	1
-B_cell_lymphos	/mnt/int2/sumstats_EBV/32929287-GCST90001644-EFO_0007937.h.tsv.gz	hm_rsid	effect_allele	other_allele	--N-col n --p p_value	0
